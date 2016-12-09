@@ -17,5 +17,5 @@ Problem            language
 6-noise            Groovy
 7-abba             vimscript
 8
-9
+9-compression      bash
 ================== ========
