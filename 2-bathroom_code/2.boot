@@ -3,13 +3,33 @@
 (require '[clojure.java.io :refer [reader]])
 (require '[clojure.string :refer [join]])
 
-(def infile "in-ex")
+(def keypad
+  (vector
+    "  1  "
+    " 234 "
+    "56789"
+    " ABC "
+    "  D  "))
+(def no-key \space)
+(def start [2 0])
+
+(defn clip [min-val max-val val]
+  (min max-val (max min-val val)))
+
+(defn clipped-add [min-val max-val & args]
+  (clip min-val max-val (apply + args)))
+
+(defn get-key [p]
+  (get-in keypad p))
 
 (def move-funs
-  {\U #(if (<= % 3) % (- % 3))
-   \R #(if (= 0 (mod % 3)) % (inc %))
-   \D #(if (>= % 7) % (+ % 3))
-   \L #(if (= 1 (mod % 3)) % (dec %))}
+  (letfn [(step [p d]
+            (let [newp (into [] (map (partial clipped-add 0 4) p d))]
+              (if (= (get-key newp) no-key) p newp)))]
+    {\U #(step % [-1 0])
+     \R #(step % [0 1])
+     \D #(step % [1 0])
+     \L #(step % [0 -1])})
 )
 
 (defn move [p c]
@@ -21,7 +41,13 @@
 
 (defn get-code [infile]
   (with-open [rdr (reader infile)]
-    (println (join "" (rest (reduce proc-line [5] (line-seq rdr)))))))
+    (->> (line-seq rdr)
+         (reduce proc-line [start])
+         rest
+         (map get-key)
+         (join "")
+         println
+)))
 
 (defn -main [infile]
   (get-code infile))
