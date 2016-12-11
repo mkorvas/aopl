@@ -11,7 +11,7 @@ Problem            language
 ================== ========
 1-taxi             awk
 2-bathroom_code    Clojure
-3
+3-squares          r17
 4
 5-security_doors   Perl
 6-noise            Groovy
@@ -21,3 +21,5 @@ Problem            language
 10
 11
 ================== ========
+
+.. vim: set virtualedit=all :

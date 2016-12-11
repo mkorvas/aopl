@@ -1,0 +1,18 @@
+# Join records from every three subsequent lines.
+meta.shell("sed -e 'N;N;s/\\n/ /g'") |
+# Split lines on spaces.
+rel.from_text("\\s*(\\S+)\\s+(\\S+)\\s+(\\S+)" +
+              "\\s*(\\S+)\\s+(\\S+)\\s+(\\S+)" +
+							"\\s*(\\S+)\\s+(\\S+)\\s+(\\S+)\\s*",
+							"int:a1", "int:a2", "int:a3",
+							"int:b1", "int:b2", "int:b3",
+							"int:c1", "int:c2", "int:c3") |
+# Count valid triangles per line.
+rel.select((if (a1 + b1 > c1 && a1 + c1 > b1 && b1 + c1 > a1) then (1) else (0)) +
+				   (if (a2 + b2 > c2 && a2 + c2 > b2 && b2 + c2 > a2) then (1) else (0)) +
+				   (if (a3 + b3 > c3 && a3 + c3 > b3 && b3 + c3 > a3) then (1) else (0))
+					 as n_triangles) |
+# Sum for all lines.
+rel.group(sum n_triangles) |
+# Print.
+rel.to_tsv();
