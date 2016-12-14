@@ -12,7 +12,7 @@ Problem            language
 1-taxi             awk
 2-bathroom_code    Clojure
 3-squares          r17
-4
+4-rooms            Pascal
 5-security_doors   Perl
 6-noise            Groovy
 7-abba             vimscript
@@ -20,6 +20,8 @@ Problem            language
 9-compression      bash
 10
 11
+12
+13
 ================== ========
 
 .. vim: set virtualedit=all :

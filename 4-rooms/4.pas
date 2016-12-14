@@ -132,9 +132,35 @@ begin
 			{ DEBUGGING }
 			{ writeln(lineno, ' ', 0); }
 end;  { checkroom }
+ 
+function rotateltr(ltr: char; n: integer): char;
+begin
+	rotateLtr := chr(ord(ltr) + (n mod 26));
+	if rotateLtr > 'z' then rotateLtr := chr(ord(rotateLtr) - 26);
+end;
+
+function rotate(roomcode: string; n: integer): string;
+var
+	ltr: char;
+	ltridx: integer;
+	prefix: string;
 
 begin
+	prefix := '';
+	for ltridx := 1 to length(roomcode) do
+		begin
+			ltr := roomcode[ltridx];
+			if (ltr >= '0') and (ltr <= '9') then
+				break;
+			if ltr <> '-' then
+				ltr := rotateltr(ltr, n);
+			prefix := prefix + ltr;
+		end;
+	rotate := prefix;
+end;  { rotate }
 
+procedure first();
+begin
 	checksum := 0;
 	lineno := 0;
 	while not eof() do
@@ -144,5 +170,26 @@ begin
 			checksum := checksum + checkroom(roomcode);
 		end;
 	writeln(checksum);
+end;
+
+procedure second();
+begin
+	checksum := 0;
+	lineno := 0;
+	while not eof() do
+		begin
+			readln(roomcode);
+			inc(lineno);
+			checksum := checkroom(roomcode);
+			if checksum <> 0 then
+				begin
+					writeln(rotate(roomcode, checksum), ' ', checksum);
+				end;
+		end;
+end;
+
+begin
+
+	second();
 
 end.
