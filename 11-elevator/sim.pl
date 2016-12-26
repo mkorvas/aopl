@@ -6,19 +6,40 @@ main :-
   opt_arguments([[opt(infile)]], _, Args),
   ([Infile] = Args, !; Infile = 'in-ex'),
   writeln(Infile),
-  % solve(Infile, X),
-  solve2(Infile, X),
+  solve(Infile, X),
+  % solve2(Infile, X),
   writeln(X),
-  halt,
+  halt,  % Comment this out for use in an interactive session.
   [].
 
 solve(File, FinalTurn) :-
   problem_spec(File, Spec),
-  solve_as_set(Spec, FinalTurn), !.
+  solve_as_list(Spec, FinalTurn), !.
+  % solve_as_set(Spec, FinalTurn), !.
 
 solve2(File, FinalTurn) :-
   problem_spec(File, [cg(1, 1), cg(1, 1)], Spec),
-  solve_as_set(Spec, FinalTurn), !.
+  solve_as_list(Spec, FinalTurn), !.
+  % solve_as_set(Spec, FinalTurn), !.
+
+solve_as_list(Conf, FinalTurn) :-
+  solve_as_list([], [Conf], 0, FinalTurn).
+
+solve_as_list(_, [], _, _) :- !, fail.
+solve_as_list(_, LastConfs, FinalTurn, FinalTurn) :-
+  member(Conf, LastConfs),
+  final_configuration(Conf),
+  !.
+solve_as_list(PrevConfs, LastConfs, Turn, FinalTurn) :-
+  NextTurn is Turn + 1,
+  setof(ReachableConf,
+        Conf ^ (member(Conf, LastConfs), reachable(Conf, ReachableConf)),
+        ReachableConfs),
+  subtract(ReachableConfs, PrevConfs, NewNoPrev),
+  subtract(NewNoPrev, LastConfs, NewConfs),
+  length(LastConfs, L),
+  writeln([NextTurn, L]),
+  solve_as_list(LastConfs, NewConfs, NextTurn, FinalTurn).
 
 solve_as_set(Conf, FinalTurn) :-
   empty_nb_set(NoConfs),
@@ -166,6 +187,10 @@ alpha_star([L|Ls]) --> alpha(L), !, alpha_star(Ls).
 % first problem, avoiding only configurations from the preceding step:
 %   438.28user 1.57system 7:38.91elapsed 95%CPU (0avgtext+0avgdata 116044maxresident)k
 %   0inputs+0outputs (0major+111250minor)pagefaults 0swaps
-% second problem:
+% ... optimizations...
+% second problem, solve_as_set:
 %   4.30user 0.06system 0:04.38elapsed 99%CPU (0avgtext+0avgdata 43444maxresident)k
 %   0inputs+0outputs (0major+9127minor)pagefaults 0swaps
+% second problem, solve_as_list:
+%   4.10user 0.06system 0:04.18elapsed 99%CPU (0avgtext+0avgdata 11648maxresident)k
+%   0inputs+0outputs (0major+5570minor)pagefaults 0swaps
