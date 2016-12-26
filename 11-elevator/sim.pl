@@ -3,30 +3,22 @@
 
 :- initialization main.
 main :-
-  % use_module(library(nbSet)),
   opt_arguments([[opt(infile)]], _, Args),
   ([Infile] = Args, !; Infile = 'in-ex'),
   writeln(Infile),
-  solve(Infile, X),
-  % solve2(Infile, X),
+  % solve(Infile, X),
+  solve2(Infile, X),
   writeln(X),
   halt,
   [].
 
 solve(File, FinalTurn) :-
   problem_spec(File, Spec),
-  solve_as_set(Spec, FinalTurn).
-  % solve([], [Spec], 0, FinalTurn).
+  solve_as_set(Spec, FinalTurn), !.
 
 solve2(File, FinalTurn) :-
-  problem_spec(File,
-               [item(chip, dilithium, 1),
-                item(generator, dilithium, 1),
-                item(chip, elerium, 1),
-                item(generator, elerium, 1)],
-               Spec),
-  writeln(Spec), !, fail,
-  solve([], [Spec], 0, FinalTurn).
+  problem_spec(File, [cg(1, 1), cg(1, 1)], Spec),
+  solve_as_set(Spec, FinalTurn), !.
 
 solve_as_set(Conf, FinalTurn) :-
   empty_nb_set(NoConfs),
@@ -48,7 +40,6 @@ solve(PrevConfs, LastConfs, Turn, FinalTurn) :-
   set_subtract(NewNoPrev, LastConfs, NewConfs),
   size_nb_set(LastConfs, L),
   writeln([NextTurn, L]),
-  % writeln(NewConfs),
   solve(LastConfs, NewConfs, NextTurn, FinalTurn).
 
 set_subtract(As, Bs, Cs) :-
@@ -60,26 +51,9 @@ list_set_diff([A|Al], Bs, Cs) :-
   list_set_diff(Al, Bs, Cs),
   (add_nb_set(A, Bs, false) ; add_nb_set(A, Cs, true)).
 
-% solve(_, [], _, _) :- !, fail.
-% solve(_, LastConfs, FinalTurn, FinalTurn) :-
-%   member(FinalConf, LastConfs),
-%   final_configuration(FinalConf),
-%   !.
-% solve(PrevConfs, LastConfs, Turn, FinalTurn) :-
-%   NextTurn is Turn + 1,
-%   setof(ReachableConf,
-%         Conf ^ (member(Conf, LastConfs), reachable(Conf, ReachableConf)),
-%         ReachableConfs),
-%   subtract(ReachableConfs, PrevConfs, NewNoPrev),
-%   subtract(NewNoPrev, LastConfs, NewConfs),
-%   length(LastConfs, L),
-%   writeln([NextTurn, L]),
-%   writeln(NewConfs),
-%   solve(LastConfs, NewConfs, NextTurn, FinalTurn).
-
 final_configuration([]).
 final_configuration([floor(4)|Items]) :- final_configuration(Items).
-final_configuration([item(_, _, 4)|Items]) :- final_configuration(Items).
+final_configuration([cg(4, 4)|Items]) :- final_configuration(Items).
 
 reachable(Conf1, Conf2) :-
   member(floor(F), Conf1),
@@ -88,18 +62,30 @@ reachable(Conf1, Conf2) :-
   safe_floor(Conf2, F),
   safe_floor(Conf2, Fnew).
 
-% Move one item.
+elevable([chip]).
+elevable([generator]).
+elevable([chip_and_generator]).
+elevable([chip, chip]).
+elevable([chip, generator]).
+elevable([generator, generator]).
+
 move_items(Conf1, Conf2, F, Fnew) :-
-  member(item(T, E, F), Conf1),
-  subtract(Conf1, [floor(F), item(T, E, F)], ConfBase),
-  sort([floor(Fnew), item(T, E, Fnew)|ConfBase], Conf2).
-% Move two items.
-move_items(Conf1, Conf2, F, Fnew) :-
-  member(item(T, E, F), Conf1),
-  member(item(T2, E2, F), Conf1),
-  (T \= T2; E \= E2),
-  subtract(Conf1, [floor(F), item(T, E, F), item(T2, E2, F)], ConfBase),
-  sort([floor(Fnew), item(T, E, Fnew), item(T2, E2, Fnew)|ConfBase], Conf2).
+  elevable(Items),
+  move_items(F, Fnew, Items, Conf1, Conf2F),
+  selectchk(floor(F), Conf2F, floor(Fnew), Conf2Unsorted),
+  msort(Conf2Unsorted, Conf2).
+
+move_items(_, _, [], Conf, Conf).
+move_items(F, Fnew, [T|Tl], Conf1, [Moved|MovedRest]) :-
+  move_item(F, Fnew, T, Conf1, Remains, Moved),
+  move_items(F, Fnew, Tl, Remains, MovedRest).
+
+move_item(F, Fnew, chip, Conf, Remains, cg(Fnew, FG)) :-
+  select(cg(F, FG), Conf, Remains).
+move_item(F, Fnew, generator, Conf, Remains, cg(FC, Fnew)) :-
+  select(cg(FC, F), Conf, Remains).
+move_item(F, Fnew, chip_and_generator, Conf, Remains, cg(Fnew, Fnew)) :-
+  select(cg(F, F), Conf, Remains).
 
 next_floor(F, F2) :-
   (F2 is F + 1; F2 is F - 1), F2 >= 1, F2 =< 4.
@@ -107,41 +93,26 @@ next_floor(F, F2) :-
 safe_floor(Conf, F) :-
   \+ unsafe_floor(Conf, F).
 unsafe_floor(Conf, F) :-
-  member(item(chip, E, F), Conf),
-  member(item(generator, E2, F), Conf),
-  E \= E2,
-  \+ member(item(generator, E, F), Conf).
+  member(cg(F, FG), Conf),
+  F \= FG,
+  member(cg(_, F), Conf).
 
 % Input processing
 problem_spec(File, Spec) :-
   phrase_from_file(lines(Items), File),
-  % abstract_mats(Items, VarmatItems),
-  sort([floor(1)| Items], Spec).
-problem_spec(File, ExtraItems, Spec) :-
+  to_cg_pairs(Items, Pairs),
+  msort([floor(1)| Pairs], Spec), !.
+problem_spec(File, ExtraPairs, Spec) :-
   phrase_from_file(lines(Items), File),
-  union(Items, ExtraItems, AllItems),
-  % abstract_mats(AllItems, VarmatItems),
-  sort([floor(1)| AllItems], Spec).
+  to_cg_pairs(Items, Pairs),
+  append(Pairs, ExtraPairs, AllPairs),
+  msort([floor(1)| AllPairs], Spec), !.
 
-abstract_mats(Il, Ev) :-
-  mat_list(Il, Ml),
-  list_to_set(Ml, Ms),
-  length(Ms, NumMats),
-  length(Vars, NumMats),
-  all_different(Vars),
-  match_mats(Il, Ms, Vars, Ev),
-  !.
-
-mat_list([], []).
-mat_list([item(_, M, _)|Il], [M|Ml]) :- mat_list(Il, Ml).
-
-match_mats([], _, _, []).
-match_mats([I|Il], Ms, Vs, [Im|Ims]) :-
-  match_mat(I, Ms, Vs, Im),
-  match_mats(Il, Ms, Vs, Ims).
-
-match_mat(item(T, M, F), [M|_], [V|_], item(T, V, F)).
-match_mat(I, [_|Ms], [_|Vs], Im) :- match_mat(I, Ms, Vs, Im).
+to_cg_pairs([], []).
+to_cg_pairs(Items, [cg(FC, FG)|Pl]) :-
+  selectchk(item(chip, E, FC), Items, ItemsNoChip),
+  selectchk(item(generator, E, FG), ItemsNoChip, ItemsNoE),
+  to_cg_pairs(ItemsNoE, Pl), !.
 
 % Input parsing
 eos([], []).
@@ -195,3 +166,6 @@ alpha_star([L|Ls]) --> alpha(L), !, alpha_star(Ls).
 % first problem, avoiding only configurations from the preceding step:
 %   438.28user 1.57system 7:38.91elapsed 95%CPU (0avgtext+0avgdata 116044maxresident)k
 %   0inputs+0outputs (0major+111250minor)pagefaults 0swaps
+% second problem:
+%   4.30user 0.06system 0:04.38elapsed 99%CPU (0avgtext+0avgdata 43444maxresident)k
+%   0inputs+0outputs (0major+9127minor)pagefaults 0swaps
