@@ -1,31 +1,81 @@
+% Run like this:
+% swipl -G2g -T2g -L2g sim.pl in
+
 :- initialization main.
 main :-
+  % use_module(library(nbSet)),
   opt_arguments([[opt(infile)]], _, Args),
   ([Infile] = Args, !; Infile = 'in-ex'),
   writeln(Infile),
   solve(Infile, X),
+  % solve2(Infile, X),
   writeln(X),
-  halt.
+  halt,
+  [].
 
 solve(File, FinalTurn) :-
   problem_spec(File, Spec),
+  solve_as_set(Spec, FinalTurn).
+  % solve([], [Spec], 0, FinalTurn).
+
+solve2(File, FinalTurn) :-
+  problem_spec(File,
+               [item(chip, dilithium, 1),
+                item(generator, dilithium, 1),
+                item(chip, elerium, 1),
+                item(generator, elerium, 1)],
+               Spec),
+  writeln(Spec), !, fail,
   solve([], [Spec], 0, FinalTurn).
 
-solve(_, [], _, _) :- !, fail.
+solve_as_set(Conf, FinalTurn) :-
+  empty_nb_set(NoConfs),
+  empty_nb_set(LastConfs),
+  add_nb_set(Conf, LastConfs, true),
+  solve(NoConfs, LastConfs, 0, FinalTurn).
+
+solve(_, LastConfs, _, _) :- empty_nb_set(LastConfs), !, fail.
 solve(_, LastConfs, FinalTurn, FinalTurn) :-
-  member(FinalConf, LastConfs),
-  final_configuration(FinalConf),
+  gen_nb_set(LastConfs, Conf),
+  final_configuration(Conf),
   !.
 solve(PrevConfs, LastConfs, Turn, FinalTurn) :-
   NextTurn is Turn + 1,
   setof(ReachableConf,
-        Conf ^ (member(Conf, LastConfs), reachable(Conf, ReachableConf)),
+        Conf ^ (gen_nb_set(LastConfs, Conf), reachable(Conf, ReachableConf)),
         ReachableConfs),
-  subtract(ReachableConfs, PrevConfs, NewNoPrev),
-  subtract(NewNoPrev, LastConfs, NewConfs),
-  length(LastConfs, L),
+  list_set_diff(ReachableConfs, PrevConfs, NewNoPrev),
+  set_subtract(NewNoPrev, LastConfs, NewConfs),
+  size_nb_set(LastConfs, L),
   writeln([NextTurn, L]),
+  % writeln(NewConfs),
   solve(LastConfs, NewConfs, NextTurn, FinalTurn).
+
+set_subtract(As, Bs, Cs) :-
+  nb_set_to_list(As, Al),
+  list_set_diff(Al, Bs, Cs).
+
+list_set_diff([], _, Cs) :- empty_nb_set(Cs).
+list_set_diff([A|Al], Bs, Cs) :-
+  list_set_diff(Al, Bs, Cs),
+  (add_nb_set(A, Bs, false) ; add_nb_set(A, Cs, true)).
+
+% solve(_, [], _, _) :- !, fail.
+% solve(_, LastConfs, FinalTurn, FinalTurn) :-
+%   member(FinalConf, LastConfs),
+%   final_configuration(FinalConf),
+%   !.
+% solve(PrevConfs, LastConfs, Turn, FinalTurn) :-
+%   NextTurn is Turn + 1,
+%   setof(ReachableConf,
+%         Conf ^ (member(Conf, LastConfs), reachable(Conf, ReachableConf)),
+%         ReachableConfs),
+%   subtract(ReachableConfs, PrevConfs, NewNoPrev),
+%   subtract(NewNoPrev, LastConfs, NewConfs),
+%   length(LastConfs, L),
+%   writeln([NextTurn, L]),
+%   writeln(NewConfs),
+%   solve(LastConfs, NewConfs, NextTurn, FinalTurn).
 
 final_configuration([]).
 final_configuration([floor(4)|Items]) :- final_configuration(Items).
@@ -62,11 +112,38 @@ unsafe_floor(Conf, F) :-
   E \= E2,
   \+ member(item(generator, E, F), Conf).
 
-% Input parsing
+% Input processing
 problem_spec(File, Spec) :-
   phrase_from_file(lines(Items), File),
+  % abstract_mats(Items, VarmatItems),
   sort([floor(1)| Items], Spec).
+problem_spec(File, ExtraItems, Spec) :-
+  phrase_from_file(lines(Items), File),
+  union(Items, ExtraItems, AllItems),
+  % abstract_mats(AllItems, VarmatItems),
+  sort([floor(1)| AllItems], Spec).
 
+abstract_mats(Il, Ev) :-
+  mat_list(Il, Ml),
+  list_to_set(Ml, Ms),
+  length(Ms, NumMats),
+  length(Vars, NumMats),
+  all_different(Vars),
+  match_mats(Il, Ms, Vars, Ev),
+  !.
+
+mat_list([], []).
+mat_list([item(_, M, _)|Il], [M|Ml]) :- mat_list(Il, Ml).
+
+match_mats([], _, _, []).
+match_mats([I|Il], Ms, Vs, [Im|Ims]) :-
+  match_mat(I, Ms, Vs, Im),
+  match_mats(Il, Ms, Vs, Ims).
+
+match_mat(item(T, M, F), [M|_], [V|_], item(T, V, F)).
+match_mat(I, [_|Ms], [_|Vs], Im) :- match_mat(I, Ms, Vs, Im).
+
+% Input parsing
 eos([], []).
 
 lines([]) --> eos, !.
@@ -111,3 +188,10 @@ word(W) --> alpha(L), alpha_star(Ls), { atom_codes(W, [L|Ls]) }.
 alpha(X) --> [X], { code_type(X, alpha) }.
 alpha_star([]) --> [].
 alpha_star([L|Ls]) --> alpha(L), !, alpha_star(Ls).
+
+% first problem, avoiding all configurations seen so far:
+%   4629.32user 9.66system 1:19:13elapsed 97%CPU (0avgtext+0avgdata 217328maxresident)k
+%   0inputs+0outputs (0major+135144minor)pagefaults 0swaps
+% first problem, avoiding only configurations from the preceding step:
+%   438.28user 1.57system 7:38.91elapsed 95%CPU (0avgtext+0avgdata 116044maxresident)k
+%   0inputs+0outputs (0major+111250minor)pagefaults 0swaps
