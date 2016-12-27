@@ -18,10 +18,22 @@ Problem            language
 7-abba             vimscript
 8-screen           C++
 9-compression      bash
-10
-11
+10-bots            Scala
+11-elevator        Prolog
 12
 13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
 ================== ========
 
 .. vim: set virtualedit=all :
