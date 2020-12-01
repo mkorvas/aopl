@@ -1,17 +1,24 @@
 BEGIN {
-	TOTAL = 2020
+	TOTAL = 2020;
+	first = 1;
 }
 {
-	numset[$0] = 1
-	if (TOTAL / 2 == $0)
-		half_twice = 1;
+	if (first) {
+		first = 0;
+		nextIdx = 0;
+	}
+	else
+		nextIdx = length(nums);
+	nums[nextIdx] = $0;
 }
 END {
-	if (half_twice)
-		print (TOTAL / 2) ^ 2;
-	for (a = 0; a < TOTAL / 2; a++) {
-		if (numset[a] && numset[TOTAL - a]) {
-			print a * (TOTAL - a);
+	asort(nums);
+	for (aIdx = 1; aIdx <= length(nums); aIdx++) {
+		for (bIdx = aIdx + 1; bIdx <= length(nums); bIdx++) {
+			for (cIdx = bIdx + 1; cIdx <= length(nums); cIdx++) {
+				if (nums[aIdx] + nums[bIdx] + nums[cIdx] == TOTAL)
+					print nums[aIdx] * nums[bIdx] * nums[cIdx];
+			}
 		}
 	}
 }
