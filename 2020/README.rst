@@ -12,4 +12,5 @@ Problem                 language
 01-stars                awk
 02-password-philosophy  bash
 03-toboggan-trajectory  clojure
+04-passport-processing  d
 ======================= ========
