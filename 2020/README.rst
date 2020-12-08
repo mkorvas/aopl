@@ -13,4 +13,7 @@ Problem                 language
 02-password-philosophy  bash
 03-toboggan-trajectory  clojure
 04-passport-processing  d
+05-binary-boarding      (WIP)
+06-custom-customs       (TODO)
+07-handy-haversacks     groovy
 ======================= ========
